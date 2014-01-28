@@ -109,7 +109,7 @@ void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1.0, 1.0, 1.0);
-	glShadeModel(GL_SMOOTH);
+	glShadeModel(GL_FLAT);
 	glLoadIdentity();
 
 	gluLookAt(1.0, 10.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 1.0);
@@ -154,7 +154,7 @@ void display()
 		x--;
 		y++;
 		/* creating a line of pixels from right to left */
-		for (x; x > 0; x--) {
+		for (x; x >= 0; x--) {
 			//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
 
 			float z = heightValues[x][y] * heightScale;
