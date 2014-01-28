@@ -36,9 +36,9 @@ CONTROLSTATE g_ControlState = ROTATE;
 RENDERTYPE g_RenderType = R_TRIANGLES;
 
 /* state of the world */
-float g_vLandRotate[3] = { 0.0, 0.0, 0.0 };
-float g_vLandTranslate[3] = { 0.0, 0.0, 0.0 };
-float g_vLandScale[3] = { 1.0, 1.0, 1.0 };
+float g_vLandRotate[3] = { -46.0, 11.0, 0.0 };
+float g_vLandTranslate[3] = { -1.78, 0.86, 0.0 };
+float g_vLandScale[3] = { 0.01, 0.01, 1.0 };
 
 /* see <your pic directory>/pic.h for type Pic */
 Pic * g_pHeightData;
@@ -80,9 +80,6 @@ float** calculateHeight(const Pic* pic)
 	{
 		rgbToGrayScale[i] = new float[256];
 	}
-
-	std::cout << pic->nx << std::endl;
-	std::cout << pic->ny << std::endl;
 
 	for (int x = 0; x < pic->nx; x++) {
 		for (int y = 0; y < pic->ny; y++) {
