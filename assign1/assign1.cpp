@@ -36,9 +36,9 @@ CONTROLSTATE g_ControlState = ROTATE;
 RENDERTYPE g_RenderType = R_TRIANGLES;
 
 /* state of the world */
-float g_vLandRotate[3] = { -46.0, 11.0, 0.0 };
-float g_vLandTranslate[3] = { -1.78, 0.86, 0.0 };
-float g_vLandScale[3] = { 0.01, 0.01, 1.0 };
+float g_vLandRotate[3] = { 0.0, 0.0, 0.0 };
+float g_vLandTranslate[3] = { 0.0, 0.0, 0.0 };
+float g_vLandScale[3] = { 1.0, 1.0, 1.0 };
 
 /* see <your pic directory>/pic.h for type Pic */
 Pic * g_pHeightData;
@@ -86,7 +86,7 @@ float** calculateHeight(const Pic* pic)
 			int red = PIC_PIXEL(pic, x, y, 0);
 			int blue = PIC_PIXEL(pic, x, y, 1);
 			int green = PIC_PIXEL(pic, x, y, 2);
-			float grayscale = (red + blue + green) / (3.0 * 255.0);
+			float grayscale = (red + blue + green) / (3.0 * 10);
 			rgbToGrayScale[y][x] = grayscale;
 		}
 	}
@@ -109,10 +109,10 @@ void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1.0, 1.0, 1.0);
-	glShadeModel(GL_FLAT);
+	glShadeModel(GL_SMOOTH);
 	glLoadIdentity();
 
-	gluLookAt(1.0, 10.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 1.0);
+	gluLookAt(128.0, 128.0, 300.0, 128.0, 128.0, 0.0, 0.0, 1.0, 0.0);
 
 	glRotatef(g_vLandRotate[0], 1.0, 0.0, 0.0);
 	glRotatef(g_vLandRotate[1], 0.0, 1.0, 0.0);
@@ -144,11 +144,11 @@ void display()
 			//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
 
 			float z = heightValues[x][y] * heightScale;
-			glColor3f(z, z, 1.0);
+			glColor3f(z / 25.0, z / 25.0, 1.0);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			glColor3f(z, z, 1.0);
+			glColor3f(z / 25.0, z / 25.0, 1.0);
 			glVertex3f(x, y + 1, z);
 		}
 		x--;
@@ -158,11 +158,11 @@ void display()
 			//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
 
 			float z = heightValues[x][y] * heightScale;
-			glColor3f(z, z, 1.0);
+			glColor3f(z / 25.0, z / 25.0, 1.0);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			glColor3f(z, z, 1.0);
+			glColor3f(z / 25.0, z / 25.0, 1.0);
 			glVertex3f(x, y + 1, z);
 		}
 
@@ -179,10 +179,7 @@ void reshape(int w, int h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	if (w <= h) /* aspect <= 1 */
-		glOrtho(-2.0, 2.0, -2.0 / aspect, 2.0 / aspect, -10.0, 10.0);
-	else /* aspect > 1 */
-		glOrtho(-2.0 * aspect, 2.0 * aspect, -2.0, 2.0, -10.0, 10.0);
+	gluPerspective(60.0, aspect, .01, 1000);
 	glMatrixMode(GL_MODELVIEW);
 }
 
