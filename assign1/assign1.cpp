@@ -16,8 +16,10 @@
 #include <GL/glu.h>
 #include <GL/glut.h>
 
+/* menu IDs */
 int g_iMenuId;
 int g_iSubMenuRenderID;
+int g_iSubMenuShadingID;
 int g_iSubMenuTextureID;
 int g_iSubMenuMaterialID;
 int g_iSubMenuImageID;
@@ -29,11 +31,16 @@ int g_iRightMouseButton = 0;
 
 int screenShotCount = 0;
 
+/* used for options chosen from the user menu */
 typedef enum { ROTATE, TRANSLATE, SCALE } CONTROLSTATE;
-typedef enum { R_POINTS, R_LINES, R_TRIANGLES } RENDERTYPE;
+typedef enum { R_POINTS, R_LINES, R_TRIANGLES, R_TRIANGLE_STRIP } RENDERTYPE;
+typedef enum { FLAT, SMOOTH } SHADETYPE;
+typedef enum { RED, BLUE, GREEN } COLOR;
 
 CONTROLSTATE g_ControlState = ROTATE;
-RENDERTYPE g_RenderType = R_TRIANGLES;
+RENDERTYPE g_RenderType = R_TRIANGLE_STRIP;
+SHADETYPE g_ShadeType = SMOOTH;
+COLOR g_Color = BLUE;
 
 /* state of the world */
 float g_vLandRotate[3] = { 0.0, 0.0, 0.0 };
@@ -45,6 +52,18 @@ Pic * g_pHeightData;
 float ** heightValues;
 
 float heightScale = 1.0;
+
+/* values for gluLookAt */
+float eyeX = 20.0,		eyeY = 30.0,		eyeZ = 300.0;
+float centerX =	128.0,	centerY = 128.0,	centerZ = 0.0;
+float upX = 0.0,		upY = 1.0,			upZ = 0.0;
+
+/* values for animation */
+bool xGoRight = true;
+bool yGoUp = false;
+bool zGoOut = true;
+
+bool animateImage = false;
 
 /* Write a screenshot to the specified filename */
 void saveScreenshot(char *filename)
@@ -102,27 +121,86 @@ void myinit()
 
 void animate()
 {
+	if (xGoRight) {
+		eyeX += 1;
+		if (eyeX > 255)
+			xGoRight = false;
+	}
+	else {
+		eyeX -= 1;
+		if (eyeX < 2)
+			xGoRight = true;
+	}
 
+	if (yGoUp) {
+		eyeY += 1;
+		if (eyeY > 255)
+			yGoUp = false;
+	}
+	else {
+		eyeY -= 1;
+		if (eyeY < 2)
+			yGoUp = true;
+	}
+
+	if (zGoOut) {
+		eyeZ += 1;
+		if (eyeZ > 255)
+			zGoOut = false;
+	}
+	else {
+		eyeZ -= 1;
+		if (eyeZ < (30 * heightScale))
+			zGoOut = true;
+	}
 }
 
+/* sets the vertex color based on the chosen color and height value of the vertex*/
+void setVertexColor(float z)
+{
+	if (g_Color == BLUE)
+		glColor3f(z / (25.0 * heightScale), z / (25.0 * heightScale), 1.0);
+	else if (g_Color == RED)
+		glColor3f(1.0, z / (25.0 * heightScale), z / (25.0 * heightScale));
+	else if (g_Color == GREEN)
+		glColor3f(z / (25.0 * heightScale), 1.0, z / (25.0 * heightScale));
+}
+
+/***** MAIN DISPLAY FUNCTION *****/
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1.0, 1.0, 1.0);
-	glShadeModel(GL_SMOOTH);
+
+	/* shading model can be decided by the user in the menu */
+	if (g_ShadeType == SMOOTH)
+		glShadeModel(GL_SMOOTH);
+	else
+		glShadeModel(GL_FLAT);
+
 	glLoadIdentity();
 
-	gluLookAt(128.0, 128.0, 300.0, 128.0, 128.0, 0.0, 0.0, 1.0, 0.0);
+	/* camera view */
+	gluLookAt(eyeX,		eyeY,		eyeZ,
+			  centerX,	centerY,	centerZ,
+			  upX,		upY,		upZ);
 
+	/* object rotation */
 	glRotatef(g_vLandRotate[0], 1.0, 0.0, 0.0);
 	glRotatef(g_vLandRotate[1], 0.0, 1.0, 0.0);
 	glRotatef(g_vLandRotate[2], 0.0, 0.0, 1.0);
+	/* object translation*/
 	glTranslatef(g_vLandTranslate[0], g_vLandTranslate[1], g_vLandTranslate[2]);
+	/* object scaling */
 	glScalef(g_vLandScale[0], g_vLandScale[1], g_vLandScale[2]);
 
+	/* render type can be decided by the user in the menu*/
 	switch (g_RenderType) {
-	case R_TRIANGLES:
+	case R_TRIANGLE_STRIP:
 		glBegin(GL_TRIANGLE_STRIP);
+		break;
+	case R_TRIANGLES:
+		glBegin(GL_TRIANGLES);
 		break;
 	case R_LINES:
 		glBegin(GL_LINES);
@@ -144,11 +222,11 @@ void display()
 			//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
 
 			float z = heightValues[x][y] * heightScale;
-			glColor3f(z / 25.0, z / 25.0, 1.0);
+			setVertexColor(z);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			glColor3f(z / 25.0, z / 25.0, 1.0);
+			setVertexColor(z);
 			glVertex3f(x, y + 1, z);
 		}
 		x--;
@@ -158,11 +236,11 @@ void display()
 			//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
 
 			float z = heightValues[x][y] * heightScale;
-			glColor3f(z / 25.0, z / 25.0, 1.0);
+			setVertexColor(z);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			glColor3f(z / 25.0, z / 25.0, 1.0);
+			setVertexColor(z);
 			glVertex3f(x, y + 1, z);
 		}
 
@@ -170,6 +248,7 @@ void display()
 
 	glEnd();
 
+	/* needed for double buffering*/
 	glutSwapBuffers();
 }
 
@@ -179,11 +258,12 @@ void reshape(int w, int h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
+	/* Perspective camera view */
 	gluPerspective(60.0, aspect, .01, 1000);
 	glMatrixMode(GL_MODELVIEW);
 }
 
-/* Response To Menu Item Clicks */
+/* Response To Main Menu Item Clicks */
 void menufunc(int value)
 {
 	switch (value)
@@ -192,10 +272,13 @@ void menufunc(int value)
 		exit(0);
 		break;
 	case 1:
-		screenShotCount++;
+		screenShotCount++;/*
 		char c[40] = { '0' };
 		sprintf_s(c, "../screenshots/%03d.jpg", screenShotCount);
-		saveScreenshot(c);
+		saveScreenshot(c);*/
+		break;
+	case 2:
+		animateImage = !animateImage;
 		break;
 	}
 }
@@ -212,6 +295,22 @@ void renderMenuFunc(int value)
 	case 2:
 		g_RenderType = R_TRIANGLES;
 		break;
+	case 3:
+		g_RenderType = R_TRIANGLE_STRIP;
+	default:
+		break;
+	}
+}
+
+void shadingMenuFunc(int value)
+{
+	switch (value)
+	{
+	case 0:
+		g_ShadeType = SMOOTH;
+		break;
+	case 1:
+		g_ShadeType = FLAT;
 	default:
 		break;
 	}
@@ -219,7 +318,20 @@ void renderMenuFunc(int value)
 
 void textureMenuFunc(int value)
 {
-
+	switch (value)
+	{
+	case 0:
+		g_Color = RED;
+		break;
+	case 1:
+		g_Color = GREEN;
+		break;
+	case 2:
+		g_Color = BLUE;
+		break;
+	default:
+		break;
+	}
 }
 
 void materialMenuFunc(int value)
@@ -248,7 +360,8 @@ void imageMenuFunc(int value)
 
 void doIdle()
 {
-	/* do some stuff... */
+	if (animateImage)
+		animate();
 
 	/* make the screen update */
 	glutPostRedisplay();
@@ -341,6 +454,62 @@ void mousebutton(int button, int state, int x, int y)
 
 void keySpecial(int key, int x, int y)
 {
+	switch (glutGetModifiers()) {
+	case GLUT_ACTIVE_CTRL:
+		switch (key) {
+		case GLUT_KEY_UP:
+			eyeZ -= 4.0;
+			break;
+		case GLUT_KEY_DOWN:
+			eyeZ += 4.0;
+			break;
+		case GLUT_KEY_LEFT:
+			centerX -= 4.0;
+			break;
+		case GLUT_KEY_RIGHT:
+			centerX += 4.0;
+			break;
+		}
+		break;
+	case GLUT_ACTIVE_SHIFT:
+		switch (key) {
+		case GLUT_KEY_UP:
+			eyeY += 4.0;
+			centerY += 4.0;
+			break;
+		case GLUT_KEY_DOWN:
+			eyeY -= 4.0;
+			centerY -= 4.0;
+			break;
+		case GLUT_KEY_LEFT:
+			eyeX -= 4.0;
+			centerX -= 4.0;
+			break;
+		case GLUT_KEY_RIGHT:
+			eyeX += 4.0;
+			centerX += 4.0;
+			break;
+		}
+		break;
+	default:
+		switch (key) {
+		case GLUT_KEY_UP:
+			eyeY += 4.0;
+			break;
+		case GLUT_KEY_DOWN:
+			eyeY -= 4.0;
+			break;
+		case GLUT_KEY_LEFT:
+			eyeX -= 4.0;
+			break;
+		case GLUT_KEY_RIGHT:
+			eyeX += 4.0;
+			break;
+		}
+		break;
+	}
+
+
 	switch (key) {
 	case GLUT_KEY_PAGE_UP:
 		heightScale += 0.2;
@@ -359,13 +528,20 @@ void setupMenus()
 	glutAddMenuEntry("Points", 0);
 	glutAddMenuEntry("Lines", 1);
 	glutAddMenuEntry("Triangles", 2);
+	glutAddMenuEntry("Triangle Strip", 3);
+
+	/* shading type sub menu */
+	g_iSubMenuShadingID = glutCreateMenu(shadingMenuFunc);
+	glutSetMenu(g_iSubMenuShadingID);
+	glutAddMenuEntry("Smooth", 0);
+	glutAddMenuEntry("Flat", 1);
 
 	/* texture sub menu */
 	g_iSubMenuTextureID = glutCreateMenu(textureMenuFunc);
 	glutSetMenu(g_iSubMenuTextureID);
-	glutAddMenuEntry("None", 0);
-	glutAddMenuEntry("First", 1);
-	glutAddMenuEntry("Second", 2);
+	glutAddMenuEntry("Red", 0);
+	glutAddMenuEntry("Green", 1);
+	glutAddMenuEntry("Blue", 2);
 
 	/* material sub menu */
 	g_iSubMenuMaterialID = glutCreateMenu(materialMenuFunc);
@@ -386,7 +562,9 @@ void setupMenus()
 	g_iMenuId = glutCreateMenu(menufunc);
 	glutSetMenu(g_iMenuId);
 	glutAddMenuEntry("Screenshot", 1);
+	glutAddMenuEntry("Animate", 2);
 	glutAddSubMenu("Render As", g_iSubMenuRenderID);
+	glutAddSubMenu("Shading", g_iSubMenuShadingID);
 	glutAddSubMenu("Texture", g_iSubMenuTextureID);
 	glutAddSubMenu("Material", g_iSubMenuMaterialID);
 	glutAddSubMenu("Image", g_iSubMenuImageID);
@@ -443,6 +621,8 @@ int main(int argc, char* argv[])
 	glutPassiveMotionFunc(mouseidle);
 	/* callback for mouse button changes */
 	glutMouseFunc(mousebutton);
+	/* callback for keyboard button press */
+
 	/* callback for keyboard special button press */
 	glutSpecialFunc(keySpecial);
 
