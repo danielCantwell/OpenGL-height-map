@@ -42,6 +42,8 @@ RENDERTYPE g_RenderType = R_TRIANGLE_STRIP;
 SHADETYPE g_ShadeType = SMOOTH;
 COLOR g_Color = BLUE;
 
+bool wireframeOn = false;
+
 /* state of the world */
 float g_vLandRotate[3] = { 0.0, 0.0, 0.0 };
 float g_vLandTranslate[3] = { 0.0, 0.0, 0.0 };
@@ -194,6 +196,8 @@ void display()
 	/* object scaling */
 	glScalef(g_vLandScale[0], g_vLandScale[1], g_vLandScale[2]);
 
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
 	/* render type can be decided by the user in the menu*/
 	switch (g_RenderType) {
 	case R_TRIANGLE_STRIP:
@@ -247,6 +251,45 @@ void display()
 	}
 
 	glEnd();
+
+	/* WIREFRAME */
+	if (wireframeOn) {
+
+		glPolygonOffset(-1, -1);
+
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+		glBegin(GL_TRIANGLE_STRIP);
+		glColor3f(1.0, 1.0, 1.0);
+		/* create the vertex points */
+		for (int y = 0; y < g_pHeightData->ny - 2; y++) {
+			int x = 0;
+			/* creating a line of pixels from left to right */
+			for (x; x < g_pHeightData->nx; x++) {
+				//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
+
+				float z = heightValues[x][y] * heightScale;
+				glVertex3f(x, y, z);
+
+				z = heightValues[x][y + 1] * heightScale;
+				glVertex3f(x, y + 1, z);
+			}
+			x--;
+			y++;
+			/* creating a line of pixels from right to left */
+			for (x; x >= 0; x--) {
+				//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
+
+				float z = heightValues[x][y] * heightScale;
+				glVertex3f(x, y, z);
+
+				z = heightValues[x][y + 1] * heightScale;
+				glVertex3f(x, y + 1, z);
+			}
+
+		}
+		glEnd();
+	}
 
 	/* needed for double buffering*/
 	glutSwapBuffers();
@@ -311,8 +354,6 @@ void shadingMenuFunc(int value)
 		break;
 	case 1:
 		g_ShadeType = FLAT;
-	default:
-		break;
 	}
 }
 
@@ -328,8 +369,6 @@ void textureMenuFunc(int value)
 		break;
 	case 2:
 		g_Color = BLUE;
-		break;
-	default:
 		break;
 	}
 }
@@ -452,16 +491,35 @@ void mousebutton(int button, int state, int x, int y)
 	g_vMousePos[1] = y;
 }
 
+void keyboard(unsigned char key, int x, int y)
+{
+	switch (key) {
+	case 'w':
+		wireframeOn = !wireframeOn;
+		break;
+	}
+}
+
 void keySpecial(int key, int x, int y)
 {
 	switch (glutGetModifiers()) {
-	case GLUT_ACTIVE_CTRL:
+	case GLUT_ACTIVE_ALT:
 		switch (key) {
 		case GLUT_KEY_UP:
 			eyeZ -= 4.0;
 			break;
 		case GLUT_KEY_DOWN:
 			eyeZ += 4.0;
+			break;
+		}
+		break;
+	case GLUT_ACTIVE_CTRL:
+		switch (key) {
+		case GLUT_KEY_UP:
+			centerY += 4.0;
+			break;
+		case GLUT_KEY_DOWN:
+			centerY -= 4.0;
 			break;
 		case GLUT_KEY_LEFT:
 			centerX -= 4.0;
@@ -472,6 +530,22 @@ void keySpecial(int key, int x, int y)
 		}
 		break;
 	case GLUT_ACTIVE_SHIFT:
+		switch (key) {
+		case GLUT_KEY_UP:
+			eyeY += 4.0;
+			break;
+		case GLUT_KEY_DOWN:
+			eyeY -= 4.0;
+			break;
+		case GLUT_KEY_LEFT:
+			eyeX -= 4.0;
+			break;
+		case GLUT_KEY_RIGHT:
+			eyeX += 4.0;
+			break;
+		}
+		break;
+	default:
 		switch (key) {
 		case GLUT_KEY_UP:
 			eyeY += 4.0;
@@ -488,22 +562,6 @@ void keySpecial(int key, int x, int y)
 		case GLUT_KEY_RIGHT:
 			eyeX += 4.0;
 			centerX += 4.0;
-			break;
-		}
-		break;
-	default:
-		switch (key) {
-		case GLUT_KEY_UP:
-			eyeY += 4.0;
-			break;
-		case GLUT_KEY_DOWN:
-			eyeY -= 4.0;
-			break;
-		case GLUT_KEY_LEFT:
-			eyeX -= 4.0;
-			break;
-		case GLUT_KEY_RIGHT:
-			eyeX += 4.0;
 			break;
 		}
 		break;
@@ -622,7 +680,7 @@ int main(int argc, char* argv[])
 	/* callback for mouse button changes */
 	glutMouseFunc(mousebutton);
 	/* callback for keyboard button press */
-
+	glutKeyboardFunc(keyboard);
 	/* callback for keyboard special button press */
 	glutSpecialFunc(keySpecial);
 
