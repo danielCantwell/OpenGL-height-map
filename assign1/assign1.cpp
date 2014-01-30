@@ -326,6 +326,7 @@ void menufunc(int value)
 	}
 }
 
+/* sub menu render clicks */
 void renderMenuFunc(int value)
 {
 	switch (value) {
@@ -345,6 +346,7 @@ void renderMenuFunc(int value)
 	}
 }
 
+/* sub menu shading clicks */
 void shadingMenuFunc(int value)
 {
 	switch (value)
@@ -357,6 +359,7 @@ void shadingMenuFunc(int value)
 	}
 }
 
+/* sub menu texture clicks */
 void textureMenuFunc(int value)
 {
 	switch (value)
@@ -373,11 +376,13 @@ void textureMenuFunc(int value)
 	}
 }
 
+/* sub menu material clicks */
 void materialMenuFunc(int value)
 {
 
 }
 
+/* sub menu image clicks */
 void imageMenuFunc(int value)
 {
 	switch (value) {
@@ -397,6 +402,7 @@ void imageMenuFunc(int value)
 	heightValues = calculateHeight(g_pHeightData);
 }
 
+/* called when no other events are being called */
 void doIdle()
 {
 	if (animateImage)
@@ -417,12 +423,12 @@ void mousedrag(int x, int y)
 	case TRANSLATE:
 		if (g_iLeftMouseButton)
 		{
-			g_vLandTranslate[0] += vMouseDelta[0] * 0.01;
-			g_vLandTranslate[1] -= vMouseDelta[1] * 0.01;
+			g_vLandTranslate[0] += vMouseDelta[0] * 0.02;
+			g_vLandTranslate[1] -= vMouseDelta[1] * 0.02;
 		}
 		if (g_iMiddleMouseButton)
 		{
-			g_vLandTranslate[2] += vMouseDelta[1] * 0.01;
+			g_vLandTranslate[2] += vMouseDelta[1] * 0.02;
 		}
 		break;
 	case ROTATE:
@@ -458,6 +464,7 @@ void mouseidle(int x, int y)
 	g_vMousePos[1] = y;
 }
 
+/* mouse button clicks */
 void mousebutton(int button, int state, int x, int y)
 {
 
@@ -491,6 +498,7 @@ void mousebutton(int button, int state, int x, int y)
 	g_vMousePos[1] = y;
 }
 
+/* keyboard buttons presses */
 void keyboard(unsigned char key, int x, int y)
 {
 	switch (key) {
@@ -500,9 +508,11 @@ void keyboard(unsigned char key, int x, int y)
 	}
 }
 
+/* keyboard special button presses */
 void keySpecial(int key, int x, int y)
 {
 	switch (glutGetModifiers()) {
+		/* change eyeZ position. essentially, zoom in and out */
 	case GLUT_ACTIVE_ALT:
 		switch (key) {
 		case GLUT_KEY_UP:
@@ -513,6 +523,7 @@ void keySpecial(int key, int x, int y)
 			break;
 		}
 		break;
+		/* change the center position - where the camera is looking */
 	case GLUT_ACTIVE_CTRL:
 		switch (key) {
 		case GLUT_KEY_UP:
@@ -529,6 +540,7 @@ void keySpecial(int key, int x, int y)
 			break;
 		}
 		break;
+		/* change the eye position - where the camera is positioned */
 	case GLUT_ACTIVE_SHIFT:
 		switch (key) {
 		case GLUT_KEY_UP:
@@ -545,6 +557,7 @@ void keySpecial(int key, int x, int y)
 			break;
 		}
 		break;
+		/* change the eye and center positions */
 	default:
 		switch (key) {
 		case GLUT_KEY_UP:
@@ -567,7 +580,7 @@ void keySpecial(int key, int x, int y)
 		break;
 	}
 
-
+	/* change the heightscale value for the heightmap */
 	switch (key) {
 	case GLUT_KEY_PAGE_UP:
 		heightScale += 0.2;
