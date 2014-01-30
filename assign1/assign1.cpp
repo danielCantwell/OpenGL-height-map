@@ -35,7 +35,7 @@ int screenShotCount = 0;
 typedef enum { ROTATE, TRANSLATE, SCALE } CONTROLSTATE;
 typedef enum { R_POINTS, R_LINES, R_TRIANGLES, R_TRIANGLE_STRIP } RENDERTYPE;
 typedef enum { FLAT, SMOOTH } SHADETYPE;
-typedef enum { RED, BLUE, GREEN } COLOR;
+typedef enum { ORIGINAL, RED, BLUE, GREEN } COLOR;
 
 CONTROLSTATE g_ControlState = ROTATE;
 RENDERTYPE g_RenderType = R_TRIANGLE_STRIP;
@@ -102,13 +102,13 @@ float** calculateHeight(const Pic* pic)
 		rgbToGrayScale[i] = new float[256];
 	}
 
-	for (int x = 0; x < pic->nx; x++) {
-		for (int y = 0; y < pic->ny; y++) {
+	for (int x = 0; x < pic->nx; x += pic->bpp) {
+		for (int y = 0; y < pic->ny; y += pic->bpp) {
 			int red = PIC_PIXEL(pic, x, y, 0);
 			int blue = PIC_PIXEL(pic, x, y, 1);
 			int green = PIC_PIXEL(pic, x, y, 2);
 			float grayscale = (red + blue + green) / (3.0 * 10);
-			rgbToGrayScale[y][x] = grayscale;
+			rgbToGrayScale[y / pic->bpp][x / pic->bpp] = grayscale;
 		}
 	}
 	return rgbToGrayScale;
@@ -168,34 +168,10 @@ void setVertexColor(float z)
 		glColor3f(z / (25.0 * heightScale), 1.0, z / (25.0 * heightScale));
 }
 
-/***** MAIN DISPLAY FUNCTION *****/
-void display()
+/* creates the vertices of the heightmap */
+void renderHeightMap()
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glColor3f(1.0, 1.0, 1.0);
-
-	/* shading model can be decided by the user in the menu */
-	if (g_ShadeType == SMOOTH)
-		glShadeModel(GL_SMOOTH);
-	else
-		glShadeModel(GL_FLAT);
-
-	glLoadIdentity();
-
-	/* camera view */
-	gluLookAt(eyeX,		eyeY,		eyeZ,
-			  centerX,	centerY,	centerZ,
-			  upX,		upY,		upZ);
-
-	/* object rotation */
-	glRotatef(g_vLandRotate[0], 1.0, 0.0, 0.0);
-	glRotatef(g_vLandRotate[1], 0.0, 1.0, 0.0);
-	glRotatef(g_vLandRotate[2], 0.0, 0.0, 1.0);
-	/* object translation*/
-	glTranslatef(g_vLandTranslate[0], g_vLandTranslate[1], g_vLandTranslate[2]);
-	/* object scaling */
-	glScalef(g_vLandScale[0], g_vLandScale[1], g_vLandScale[2]);
-
+	int bpp = g_pHeightData->bpp;
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	/* render type can be decided by the user in the menu*/
@@ -219,18 +195,76 @@ void display()
 
 
 	/* create the vertex points */
-	for (int y = 0; y < g_pHeightData->ny - 2; y++) {
+	for (int y = 0; y < g_pHeightData->ny - (2 * bpp); y++) {
+		int x = 0;
+		/* creating a line of pixels from left to right */
+		for (x; x < g_pHeightData->nx; x++) {
+
+			float z = heightValues[x][y] * heightScale;
+			if (g_Color == ORIGINAL) {
+				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
+			}
+			else {
+				setVertexColor(z);
+			}
+			glVertex3f(x, y, z);
+
+			z = heightValues[x][y + 1] * heightScale;
+			if (g_Color == ORIGINAL) {
+				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
+			}
+			else {
+				setVertexColor(z);
+			}
+			glVertex3f(x, y + 1, z);
+		}
+		x--;
+		y++;
+		/* creating a line of pixels from right to left */
+		for (x; x >= 0; x--) {
+
+			float z = heightValues[x][y] * heightScale;
+			if (g_Color == ORIGINAL) {
+				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
+			}
+			else {
+				setVertexColor(z);
+			}
+			glVertex3f(x, y, z);
+
+			z = heightValues[x][y + 1] * heightScale;
+			if (g_Color == ORIGINAL) {
+				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
+			}
+			else {
+				setVertexColor(z);
+			}
+			glVertex3f(x, y + 1, z);
+		}
+
+	}
+
+	glEnd();
+}
+
+/* creates the wireframe for the heightmap */
+void renderWireFrame()
+{
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	glBegin(GL_TRIANGLE_STRIP);
+	glColor3f(0.0, 0.0, 0.0);
+	/* create the vertex points */
+	for (int y = 0; y < g_pHeightData->ny - (2 * g_pHeightData->bpp); y++) {
 		int x = 0;
 		/* creating a line of pixels from left to right */
 		for (x; x < g_pHeightData->nx; x++) {
 			//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
 
 			float z = heightValues[x][y] * heightScale;
-			setVertexColor(z);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			setVertexColor(z);
 			glVertex3f(x, y + 1, z);
 		}
 		x--;
@@ -240,55 +274,60 @@ void display()
 			//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
 
 			float z = heightValues[x][y] * heightScale;
-			setVertexColor(z);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			setVertexColor(z);
 			glVertex3f(x, y + 1, z);
 		}
 
 	}
-
 	glEnd();
+}
 
-	/* WIREFRAME */
+/* used for doing all three transformations : translate, rotate, scale */
+void transformObject()
+{
+	/* object translation*/
+	glTranslatef(g_vLandTranslate[0], g_vLandTranslate[1], g_vLandTranslate[2]);
+	/* object rotation */
+	glRotatef(g_vLandRotate[0], 1.0, 0.0, 0.0);
+	glRotatef(g_vLandRotate[1], 0.0, 1.0, 0.0);
+	glRotatef(g_vLandRotate[2], 0.0, 0.0, 1.0);
+	/* object scaling */
+	glScalef(g_vLandScale[0], g_vLandScale[1], g_vLandScale[2]);
+}
+
+/***** MAIN DISPLAY FUNCTION *****/
+void display()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glColor3f(1.0, 1.0, 1.0);
+
+	/* shading model can be decided by the user in the menu */
+	if (g_ShadeType == SMOOTH) {
+		glShadeModel(GL_SMOOTH);
+	}
+	else {
+		glShadeModel(GL_FLAT);
+	}
+
+	glLoadIdentity();
+
+	/* camera view */
+	gluLookAt(eyeX,		eyeY,		eyeZ,
+			  centerX,	centerY,	centerZ,
+			  upX,		upY,		upZ);
+
+	/* translate, rotate, scale */
+	transformObject();
+
+	/* create the heightmap */
+	renderHeightMap();
+
+	/* if enabled, create the wireframe */
 	if (wireframeOn) {
-
 		glPolygonOffset(-1, -1);
-
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-		glBegin(GL_TRIANGLE_STRIP);
-		glColor3f(1.0, 1.0, 1.0);
-		/* create the vertex points */
-		for (int y = 0; y < g_pHeightData->ny - 2; y++) {
-			int x = 0;
-			/* creating a line of pixels from left to right */
-			for (x; x < g_pHeightData->nx; x++) {
-				//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
-
-				float z = heightValues[x][y] * heightScale;
-				glVertex3f(x, y, z);
-
-				z = heightValues[x][y + 1] * heightScale;
-				glVertex3f(x, y + 1, z);
-			}
-			x--;
-			y++;
-			/* creating a line of pixels from right to left */
-			for (x; x >= 0; x--) {
-				//glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0), PIC_PIXEL(g_pHeightData, x, y, 1), PIC_PIXEL(g_pHeightData, x, y, 2));
-
-				float z = heightValues[x][y] * heightScale;
-				glVertex3f(x, y, z);
-
-				z = heightValues[x][y + 1] * heightScale;
-				glVertex3f(x, y + 1, z);
-			}
-
-		}
-		glEnd();
+		renderWireFrame();
 	}
 
 	/* needed for double buffering*/
@@ -311,15 +350,18 @@ void menufunc(int value)
 {
 	switch (value)
 	{
+		/* exit the program */
 	case 0:
 		exit(0);
 		break;
+		/* save a screenshot with the correct name */
 	case 1:
 		screenShotCount++;/*
 		char c[40] = { '0' };
 		sprintf_s(c, "../screenshots/%03d.jpg", screenShotCount);
 		saveScreenshot(c);*/
 		break;
+		/* toggle animation */
 	case 2:
 		animateImage = !animateImage;
 		break;
@@ -373,6 +415,9 @@ void textureMenuFunc(int value)
 	case 2:
 		g_Color = BLUE;
 		break;
+	case 3:
+		g_Color = ORIGINAL;
+		break;
 	}
 }
 
@@ -387,7 +432,7 @@ void imageMenuFunc(int value)
 {
 	switch (value) {
 	case 0:
-		g_pHeightData = jpeg_read("spiral.jpg", NULL);
+		g_pHeightData = jpeg_read("colorImage.JPG", NULL);
 		break;
 	case 1:
 		g_pHeightData = jpeg_read("GrandTeton-256.jpg", NULL);
@@ -505,6 +550,15 @@ void keyboard(unsigned char key, int x, int y)
 	case 'w':
 		wireframeOn = !wireframeOn;
 		break;
+	case 'r':
+		g_Color = RED;
+		break;
+	case 'b':
+		g_Color = BLUE;
+		break;
+	case 'g':
+		g_Color = GREEN;
+		break;
 	}
 }
 
@@ -613,6 +667,7 @@ void setupMenus()
 	glutAddMenuEntry("Red", 0);
 	glutAddMenuEntry("Green", 1);
 	glutAddMenuEntry("Blue", 2);
+	glutAddMenuEntry("Original", 3);
 
 	/* material sub menu */
 	g_iSubMenuMaterialID = glutCreateMenu(materialMenuFunc);
@@ -645,12 +700,7 @@ void setupMenus()
 
 int main(int argc, char* argv[])
 {
-	// I've set the argv[1] to spiral.jpg.
-	// To change it, on the "Solution Explorer",
-	// right click "assign1", choose "Properties",
-	// go to "Configuration Properties", click "Debugging",
-	// then type your texture name for the "Command Arguments"
-
+	/* check if command line arguments have been supplied */
 	if (argc < 2)
 	{
 		printf("usage: %s heightfield.jpg\n", argv[0]);
@@ -674,7 +724,8 @@ int main(int argc, char* argv[])
 	glutInitWindowPosition(100, 100);
 	glutCreateWindow("CSCI 420 Assignment 1 - Height Field");
 
-	glEnable(GL_DEPTH_TEST); // used for double buffering
+	/* used for double buffering */
+	glEnable(GL_DEPTH_TEST);
 
 	/* tells glut to use a particular display function to redraw */
 	glutDisplayFunc(display);

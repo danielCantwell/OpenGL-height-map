@@ -49,5 +49,8 @@
     <Image Include="SantaMonicaMountains-256.jpg">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="colorImage.JPG">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
