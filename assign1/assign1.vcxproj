@@ -94,7 +94,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="colorImage.JPG" />
+    <Image Include="colorImage.jpg" />
     <Image Include="GrandTeton-256.jpg" />
     <Image Include="OhioPyle-256.jpg" />
     <Image Include="SantaMonicaMountains-256.jpg" />

@@ -12,7 +12,7 @@
 #include <windows.h>
 #include <stdlib.h>
 #include <iostream>
-#include <sstream>
+#include <time.h>
 #include <GL/glu.h>
 #include <GL/glut.h>
 
@@ -30,12 +30,14 @@ int g_iMiddleMouseButton = 0;
 int g_iRightMouseButton = 0;
 
 int screenShotCount = 0;
+clock_t t;
+const float MAX_COUNT = 290;
 
 /* used for options chosen from the user menu */
 typedef enum { ROTATE, TRANSLATE, SCALE } CONTROLSTATE;
 typedef enum { R_POINTS, R_LINES, R_TRIANGLES, R_TRIANGLE_STRIP } RENDERTYPE;
 typedef enum { FLAT, SMOOTH } SHADETYPE;
-typedef enum { ORIGINAL, RED, BLUE, GREEN } COLOR;
+typedef enum { RED, BLUE, GREEN } COLOR;
 
 CONTROLSTATE g_ControlState = ROTATE;
 RENDERTYPE g_RenderType = R_TRIANGLE_STRIP;
@@ -96,19 +98,23 @@ void saveScreenshot(char *filename)
 
 float** calculateHeight(const Pic* pic)
 {
-	float** rgbToGrayScale = new float*[256];
-	for (int i = 0; i < 256; i++)
+	int bpp = pic->bpp;
+	int width = pic->nx;
+	int height = pic->ny;
+
+	float** rgbToGrayScale = new float*[width];
+	for (int i = 0; i < width; i++)
 	{
-		rgbToGrayScale[i] = new float[256];
+		rgbToGrayScale[i] = new float[height];
 	}
 
-	for (int x = 0; x < pic->nx; x += pic->bpp) {
-		for (int y = 0; y < pic->ny; y += pic->bpp) {
+	for (int x = 0; x < width; x ++) {
+		for (int y = 0; y < height; y ++) {
 			int red = PIC_PIXEL(pic, x, y, 0);
 			int blue = PIC_PIXEL(pic, x, y, 1);
 			int green = PIC_PIXEL(pic, x, y, 2);
 			float grayscale = (red + blue + green) / (3.0 * 10);
-			rgbToGrayScale[y / pic->bpp][x / pic->bpp] = grayscale;
+			rgbToGrayScale[y / bpp][x / bpp] = grayscale;
 		}
 	}
 	return rgbToGrayScale;
@@ -119,13 +125,15 @@ void myinit()
 	/* setup gl view here */
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	heightValues = calculateHeight(g_pHeightData);
+	t = clock();
 }
 
+/* define the animation */
 void animate()
 {
 	if (xGoRight) {
 		eyeX += 1;
-		if (eyeX > 255)
+		if (eyeX > g_pHeightData->nx)
 			xGoRight = false;
 	}
 	else {
@@ -136,7 +144,7 @@ void animate()
 
 	if (yGoUp) {
 		eyeY += 1;
-		if (eyeY > 255)
+		if (eyeY > g_pHeightData->ny)
 			yGoUp = false;
 	}
 	else {
@@ -147,13 +155,23 @@ void animate()
 
 	if (zGoOut) {
 		eyeZ += 1;
-		if (eyeZ > 255)
+		if (eyeZ > g_pHeightData->nx)
 			zGoOut = false;
 	}
 	else {
 		eyeZ -= 1;
 		if (eyeZ < (30 * heightScale))
 			zGoOut = true;
+	}
+
+	clock_t newT = clock() - t;
+	float sec = ((float)newT) / CLOCKS_PER_SEC;
+	if ((sec > 0.06) && (screenShotCount < MAX_COUNT)) {
+		screenShotCount++;
+		char c[20];
+		_itoa_s(screenShotCount, c, 10);
+		saveScreenshot(c);
+		t = clock();
 	}
 }
 
@@ -172,6 +190,9 @@ void setVertexColor(float z)
 void renderHeightMap()
 {
 	int bpp = g_pHeightData->bpp;
+	int width = g_pHeightData->nx;
+	int height = g_pHeightData->ny;
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	/* render type can be decided by the user in the menu*/
@@ -195,27 +216,17 @@ void renderHeightMap()
 
 
 	/* create the vertex points */
-	for (int y = 0; y < g_pHeightData->ny - (2 * bpp); y++) {
+	for (int y = 0; y < height - 2; y++) {
 		int x = 0;
 		/* creating a line of pixels from left to right */
-		for (x; x < g_pHeightData->nx; x++) {
+		for (x; x < width; x++) {
 
 			float z = heightValues[x][y] * heightScale;
-			if (g_Color == ORIGINAL) {
-				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
-			}
-			else {
-				setVertexColor(z);
-			}
+			setVertexColor(z);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			if (g_Color == ORIGINAL) {
-				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
-			}
-			else {
-				setVertexColor(z);
-			}
+			setVertexColor(z);
 			glVertex3f(x, y + 1, z);
 		}
 		x--;
@@ -224,21 +235,11 @@ void renderHeightMap()
 		for (x; x >= 0; x--) {
 
 			float z = heightValues[x][y] * heightScale;
-			if (g_Color == ORIGINAL) {
-				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
-			}
-			else {
-				setVertexColor(z);
-			}
+			setVertexColor(z);
 			glVertex3f(x, y, z);
 
 			z = heightValues[x][y + 1] * heightScale;
-			if (g_Color == ORIGINAL) {
-				glColor3f(PIC_PIXEL(g_pHeightData, x, y, 0) / 255, PIC_PIXEL(g_pHeightData, x, y, 1) / 255, PIC_PIXEL(g_pHeightData, x, y, 2) / 255);
-			}
-			else {
-				setVertexColor(z);
-			}
+			setVertexColor(z);
 			glVertex3f(x, y + 1, z);
 		}
 
@@ -250,12 +251,17 @@ void renderHeightMap()
 /* creates the wireframe for the heightmap */
 void renderWireFrame()
 {
+	int bpp = g_pHeightData->bpp;
+	int width = g_pHeightData->nx;
+	int height = g_pHeightData->ny;
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glPolygonOffset(1, 1);
 
 	glBegin(GL_TRIANGLE_STRIP);
 	glColor3f(0.0, 0.0, 0.0);
 	/* create the vertex points */
-	for (int y = 0; y < g_pHeightData->ny - (2 * g_pHeightData->bpp); y++) {
+	for (int y = 0; y < g_pHeightData->ny - 2; y++) {
 		int x = 0;
 		/* creating a line of pixels from left to right */
 		for (x; x < g_pHeightData->nx; x++) {
@@ -281,6 +287,7 @@ void renderWireFrame()
 		}
 
 	}
+	glDisable(GL_POLYGON_OFFSET_LINE);
 	glEnd();
 }
 
@@ -326,7 +333,6 @@ void display()
 
 	/* if enabled, create the wireframe */
 	if (wireframeOn) {
-		glPolygonOffset(-1, -1);
 		renderWireFrame();
 	}
 
@@ -356,10 +362,10 @@ void menufunc(int value)
 		break;
 		/* save a screenshot with the correct name */
 	case 1:
-		screenShotCount++;/*
-		char c[40] = { '0' };
-		sprintf_s(c, "../screenshots/%03d.jpg", screenShotCount);
-		saveScreenshot(c);*/
+		screenShotCount++;
+		char c[20];
+		_itoa_s(screenShotCount, c, 10);
+		saveScreenshot(c);
 		break;
 		/* toggle animation */
 	case 2:
@@ -415,9 +421,6 @@ void textureMenuFunc(int value)
 	case 2:
 		g_Color = BLUE;
 		break;
-	case 3:
-		g_Color = ORIGINAL;
-		break;
 	}
 }
 
@@ -432,7 +435,7 @@ void imageMenuFunc(int value)
 {
 	switch (value) {
 	case 0:
-		g_pHeightData = jpeg_read("colorImage.JPG", NULL);
+		g_pHeightData = jpeg_read("spiral.jpg", NULL);
 		break;
 	case 1:
 		g_pHeightData = jpeg_read("GrandTeton-256.jpg", NULL);
@@ -442,6 +445,11 @@ void imageMenuFunc(int value)
 		break;
 	case 3:
 		g_pHeightData = jpeg_read("SantaMonicaMountains-256.jpg", NULL);
+		break;
+	case 4:
+		g_pHeightData = jpeg_read("colorImage.jpg", NULL);
+		glLoadIdentity();
+		g_vLandRotate[2] = -90;
 		break;
 	}
 	heightValues = calculateHeight(g_pHeightData);
@@ -559,6 +567,27 @@ void keyboard(unsigned char key, int x, int y)
 	case 'g':
 		g_Color = GREEN;
 		break;
+	case 'p':
+		g_RenderType = R_POINTS;
+		break;
+	case 'l':
+		g_RenderType = R_LINES;
+		break;
+	case 't':
+		g_RenderType = R_TRIANGLE_STRIP;
+		break;
+	case 'f':
+		g_ShadeType = FLAT;
+		break;
+	case 's':
+		g_ShadeType = SMOOTH;
+		break;
+	case 'i':
+		screenShotCount++;
+		char c[20];
+		_itoa_s(screenShotCount, c, 10);
+		saveScreenshot(c);
+		break;
 	}
 }
 
@@ -667,7 +696,6 @@ void setupMenus()
 	glutAddMenuEntry("Red", 0);
 	glutAddMenuEntry("Green", 1);
 	glutAddMenuEntry("Blue", 2);
-	glutAddMenuEntry("Original", 3);
 
 	/* material sub menu */
 	g_iSubMenuMaterialID = glutCreateMenu(materialMenuFunc);
@@ -679,10 +707,11 @@ void setupMenus()
 	/* image sub menu */
 	g_iSubMenuImageID = glutCreateMenu(imageMenuFunc);
 	glutSetMenu(g_iSubMenuImageID);
-	glutAddMenuEntry("Spiral", 0);
-	glutAddMenuEntry("Grand Teton", 1);
-	glutAddMenuEntry("Ohio Pyle", 2);
-	glutAddMenuEntry("Santa Monica Mountains", 3);
+	glutAddMenuEntry("Spiral - 8bit - 256x256", 0);
+	glutAddMenuEntry("Grand Teton - 8bit - 256x256", 1);
+	glutAddMenuEntry("Ohio Pyle - 8bit - 256x256", 2);
+	glutAddMenuEntry("Santa Monica Mountains - 8bit - 256x256", 3);
+	glutAddMenuEntry("Color Image - 24bit - 1000x750", 4);
 
 	/* create the menu with submenus */
 	g_iMenuId = glutCreateMenu(menufunc);
